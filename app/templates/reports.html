@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Summary Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <p class="text-xs text-slate-400 uppercase font-bold mb-1">Total Logs</p>
+        <h3 class="text-3xl font-bold text-white">{{ stats.total_logs | int | format_number if stats.total_logs else '0'
+            }}</h3>
+        <p class="text-xs text-slate-500 mt-1">All ingested log entries</p>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <p class="text-xs text-slate-400 uppercase font-bold mb-1">Total Incidents</p>
+        <h3 class="text-3xl font-bold text-white">{{ stats.total_incidents }}</h3>
+        <p class="text-xs text-slate-500 mt-1">
+            <span class="text-red-400">{{ stats.open_incidents }} open</span> ·
+            <span class="text-emerald-400">{{ stats.resolved_incidents }} resolved</span>
+        </p>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <p class="text-xs text-slate-400 uppercase font-bold mb-1">Error Logs</p>
+        <h3 class="text-3xl font-bold text-red-400">{{ stats.error_logs }}</h3>
+        <p class="text-xs text-slate-500 mt-1">ERROR + CRITICAL level events</p>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <p class="text-xs text-slate-400 uppercase font-bold mb-1">Services Monitored</p>
+        <h3 class="text-3xl font-bold text-white">{{ stats.total_services }}</h3>
+        <p class="text-xs text-slate-500 mt-1">Active microservices</p>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <p class="text-xs text-slate-400 uppercase font-bold mb-1">Error Rate</p>
+        <h3 class="text-3xl font-bold text-amber-400">
+            {% if stats.total_logs > 0 %}
+            {{ "%.1f"|format(stats.error_logs / stats.total_logs * 100) }}%
+            {% else %}0%{% endif %}
+        </h3>
+        <p class="text-xs text-slate-500 mt-1">Errors vs total logs</p>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <p class="text-xs text-slate-400 uppercase font-bold mb-1">System Health</p>
+        <h3 class="text-3xl font-bold text-emerald-400">
+            {% if stats.total_logs > 0 %}
+            {{ "%.1f"|format((1 - stats.error_logs / stats.total_logs * 0.8) * 100) }}%
+            {% else %}100%{% endif %}
+        </h3>
+        <p class="text-xs text-emerald-500 mt-1">Overall operational score</p>
+    </div>
+</div>
+
+<!-- Download Section -->
+<div class="bg-card rounded-xl border border-slate-800 p-6 mb-8">
+    <h4 class="font-semibold text-white mb-4 flex items-center space-x-2">
+        <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+            </path>
+        </svg>
+        <span>Download Reports</span>
+    </h4>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/api/logs/export"
+            class="flex items-center space-x-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-primary rounded-xl p-4 transition-all group">
+            <div
+                class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <p class="font-semibold text-white text-sm">Logs Export</p>
+                <p class="text-xs text-slate-400">All logs as CSV</p>
+            </div>
+        </a>
+        <a href="/api/incidents/export"
+            class="flex items-center space-x-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-red-500 rounded-xl p-4 transition-all group">
+            <div
+                class="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
+                <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <p class="font-semibold text-white text-sm">Incidents Export</p>
+                <p class="text-xs text-slate-400">All incidents as CSV</p>
+            </div>
+        </a>
+        <button onclick="downloadFullReport()"
+            class="flex items-center space-x-3 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-emerald-500 rounded-xl p-4 transition-all group text-left">
+            <div
+                class="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+            </div>
+            <div>
+                <p class="font-semibold text-white text-sm">Full Report</p>
+                <p class="text-xs text-slate-400">Complete JSON summary</p>
+            </div>
+        </button>
+    </div>
+</div>
+
+<!-- Incident Summary Table -->
+<div class="bg-card rounded-xl border border-slate-800 overflow-hidden">
+    <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+        <h4 class="font-semibold text-white">Recent Incidents</h4>
+        <a href="/incidents" class="text-primary text-sm hover:underline">Manage all →</a>
+    </div>
+    <table class="w-full text-left text-sm">
+        <thead class="text-xs text-slate-400 uppercase font-bold bg-slate-800/10 border-b border-slate-800">
+            <tr>
+                <th class="px-5 py-3">ID</th>
+                <th class="px-5 py-3">Title</th>
+                <th class="px-5 py-3">Severity</th>
+                <th class="px-5 py-3">Status</th>
+                <th class="px-5 py-3">Created</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/50">
+            {% for inc in incidents %}
+            <tr class="hover:bg-slate-800/20 transition-all">
+                <td class="px-5 py-3 font-mono text-xs text-slate-400">INC-{{ inc.id }}</td>
+                <td class="px-5 py-3 text-slate-200 font-medium max-w-xs truncate">{{ inc.title }}</td>
+                <td class="px-5 py-3">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                        {% if inc.severity == 'CRITICAL' %}bg-red-500/20 text-red-400
+                        {% elif inc.severity == 'HIGH' %}bg-orange-500/20 text-orange-400
+                        {% elif inc.severity == 'MEDIUM' %}bg-amber-500/20 text-amber-400
+                        {% else %}bg-blue-500/20 text-blue-400{% endif %}">
+                        {{ inc.severity }}
+                    </span>
+                </td>
+                <td class="px-5 py-3">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold uppercase
+                        {% if inc.status == 'OPEN' %}bg-red-500/10 text-red-400
+                        {% elif inc.status == 'ACKNOWLEDGED' %}bg-amber-500/10 text-amber-400
+                        {% else %}bg-emerald-500/10 text-emerald-400{% endif %}">
+                        {{ inc.status }}
+                    </span>
+                </td>
+                <td class="px-5 py-3 text-xs text-slate-500 font-mono">
+                    {{ inc.created_at.strftime('%Y-%m-%d %H:%M') if inc.created_at else '—' }}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="px-5 py-8 text-center text-slate-500">No incidents yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    async function downloadFullReport() {
+        const [statsRes, logsRes, incRes] = await Promise.all([
+            fetch('/api/stats').then(r => r.json()),
+            fetch('/api/logs/?limit=1000').then(r => r.json()),
+            fetch('/api/incidents/').then(r => r.json()),
+        ]);
+
+        const report = {
+            generated_at: new Date().toISOString(),
+            summary: statsRes,
+            incidents: incRes,
+            recent_logs: logsRes.slice(0, 100),
+        };
+
+        const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `opspilot_report_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showNotification('Full report downloaded as JSON', 'info');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="flex flex-col h-[calc(100vh-10rem)] bg-card border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
+    <!-- Chat Header -->
+    <div class="p-5 border-b border-slate-800 bg-slate-800/20 flex items-center space-x-4 flex-shrink-0">
+        <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                </path>
+            </svg>
+        </div>
+        <div>
+            <h3 class="text-lg font-bold text-white">OpsPilot AI Assistant</h3>
+            <p class="text-xs text-emerald-500 flex items-center">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
+                AI Engine Online · FAISS Vector Search Active
+            </p>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-5 scroll-smooth">
+        <!-- Initial AI message -->
+        <div class="flex items-start space-x-3">
+            <div
+                class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                OP</div>
+            <div class="bg-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[80%] border border-slate-700">
+                <p class="text-sm text-slate-200">👋 Hi! I'm your AI DevOps Copilot. I can help you analyze logs,
+                    troubleshoot incidents, and monitor your system health. Try one of the quick prompts below!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Prompts -->
+    <div id="quick-prompts" class="px-6 pb-3 flex flex-wrap gap-2 flex-shrink-0">
+        <button onclick="sendPrompt(this.textContent)"
+            class="prompt-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-all hover:text-white hover:border-primary">🔴
+            Show recent errors</button>
+        <button onclick="sendPrompt(this.textContent)"
+            class="prompt-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-all hover:text-white hover:border-primary">🚨
+            Active incidents</button>
+        <button onclick="sendPrompt(this.textContent)"
+            class="prompt-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-all hover:text-white hover:border-primary">💚
+            System health status</button>
+        <button onclick="sendPrompt(this.textContent)"
+            class="prompt-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-all hover:text-white hover:border-primary">⚠️
+            Any warnings?</button>
+        <button onclick="sendPrompt(this.textContent)"
+            class="prompt-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-all hover:text-white hover:border-primary">📊
+            CPU and memory usage</button>
+        <button onclick="sendPrompt(this.textContent)"
+            class="prompt-btn px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full text-xs text-slate-300 transition-all hover:text-white hover:border-primary">🔧
+            Suggest remediation</button>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-5 border-t border-slate-800 flex-shrink-0">
+        <div class="relative flex items-center">
+            <input id="chat-input" type="text" placeholder="Ask about errors, incidents, metrics, or system health..."
+                class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 pr-28 text-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all">
+            <button id="send-btn" onclick="sendMessage()"
+                class="absolute right-2 bg-primary hover:bg-blue-600 text-white px-5 py-2 rounded-lg font-bold text-sm transition-all flex items-center space-x-1.5">
+                <span>Ask</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3">
+                    </path>
+                </svg>
+            </button>
+        </div>
+        <p class="mt-2 text-[10px] text-slate-500 text-center uppercase tracking-widest">Rule-based AI · FAISS Semantic
+            Search · Real DB Data</p>
+    </div>
+</div>
+
+<script>
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    let isLoading = false;
+
+    function appendMessage(role, content, contextLogs = []) {
+        const isAI = role === 'ai';
+        const div = document.createElement('div');
+        div.className = `flex items-start space-x-3 ${isAI ? '' : 'justify-end flex-row-reverse space-x-reverse'}`;
+
+        // Format markdown-lite: bold, code, bullets
+        const formatted = content
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+            .replace(/`([^`]+)`/g, '<code class="bg-slate-900 px-1 rounded text-primary text-xs font-mono">$1</code>')
+            .replace(/\n•/g, '<br>•')
+            .replace(/\n/g, '<br>');
+
+        let contextHtml = '';
+        if (contextLogs && contextLogs.length > 0) {
+            contextHtml = `
+            <details class="mt-3 text-xs">
+                <summary class="cursor-pointer text-slate-500 hover:text-slate-300 transition-colors">📎 ${contextLogs.length} relevant log(s) found</summary>
+                <div class="mt-2 space-y-1 pl-2 border-l-2 border-slate-700">
+                    ${contextLogs.slice(0, 3).map(l => `<div class="text-slate-400 font-mono truncate">${l.message || ''}</div>`).join('')}
+                </div>
+            </details>`;
+        }
+
+        div.innerHTML = `
+        <div class="w-8 h-8 rounded-full ${isAI ? 'bg-primary' : 'bg-slate-700'} flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+            ${isAI ? 'OP' : 'ME'}
+        </div>
+        <div class="${isAI ? 'bg-slate-800 border border-slate-700' : 'bg-primary'} rounded-2xl ${isAI ? 'rounded-tl-none' : 'rounded-tr-none'} p-4 max-w-[80%]">
+            <p class="text-sm ${isAI ? 'text-slate-200' : 'text-white'} leading-relaxed">${formatted}</p>
+            ${isAI ? contextHtml : ''}
+        </div>`;
+
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendTyping() {
+        const div = document.createElement('div');
+        div.className = 'flex items-start space-x-3';
+        div.id = 'typing-indicator';
+        div.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white flex-shrink-0">OP</div>
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-none p-4">
+            <div class="flex space-x-1.5 items-center h-4">
+                <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay:0ms"></div>
+                <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay:150ms"></div>
+                <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay:300ms"></div>
+            </div>
+        </div>`;
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const query = chatInput.value.trim();
+        if (!query || isLoading) return;
+
+        isLoading = true;
+        chatInput.value = '';
+        document.getElementById('send-btn').disabled = true;
+        document.getElementById('quick-prompts').style.display = 'none';
+
+        appendMessage('user', query);
+        appendTyping();
+
+        try {
+            const res = await fetch('/api/chat/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+            const data = await res.json();
+            document.getElementById('typing-indicator')?.remove();
+            appendMessage('ai', data.answer, data.context || []);
+        } catch (err) {
+            document.getElementById('typing-indicator')?.remove();
+            appendMessage('ai', '❌ Connection error. Please check the server is running.');
+        }
+
+        isLoading = false;
+        document.getElementById('send-btn').disabled = false;
+        chatInput.focus();
+    }
+
+    function sendPrompt(text) {
+        chatInput.value = text;
+        sendMessage();
+    }
+
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+</script>
+{% endblock %}

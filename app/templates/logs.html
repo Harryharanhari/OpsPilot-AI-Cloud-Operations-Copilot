@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-card rounded-xl border border-slate-800 shadow-xl overflow-hidden">
+    <!-- Filters Header -->
+    <div class="p-5 border-b border-slate-800 bg-slate-800/10 flex flex-wrap gap-3 items-center justify-between">
+        <div class="flex gap-3 flex-wrap">
+            <select id="filter-service"
+                class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-slate-300 focus:ring-primary focus:border-primary">
+                <option value="">All Services</option>
+                {% for svc in services %}
+                <option value="{{ svc.id }}">{{ svc.name }}</option>
+                {% endfor %}
+            </select>
+            <select id="filter-level"
+                class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-slate-300">
+                <option value="">All Levels</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+                <option value="CRITICAL">CRITICAL</option>
+            </select>
+            <label class="flex items-center space-x-2 text-sm text-slate-400 cursor-pointer">
+                <input type="checkbox" id="auto-refresh" class="rounded" checked>
+                <span>Auto-refresh</span>
+            </label>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-refresh"
+                class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                    </path>
+                </svg>
+                <span>Refresh</span>
+            </button>
+            <button id="btn-export-csv"
+                class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+                <span>Export CSV</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Count Banner -->
+    <div class="px-5 py-2 bg-slate-900/30 border-b border-slate-800 text-xs text-slate-500" id="log-count-bar">
+        Showing {{ logs|length }} of {{ total }} entries
+    </div>
+
+    <!-- Logs Table -->
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="text-slate-400 text-xs font-bold border-b border-slate-800 uppercase bg-slate-800/10">
+                    <th class="px-5 py-3 w-40">Timestamp</th>
+                    <th class="px-5 py-3 w-32">Service</th>
+                    <th class="px-5 py-3 w-24">Level</th>
+                    <th class="px-5 py-3">Message</th>
+                    <th class="px-5 py-3 w-20 text-right">Score</th>
+                </tr>
+            </thead>
+            <tbody id="logs-tbody" class="divide-y divide-slate-800/50">
+                {% for log in logs %}
+                <tr class="hover:bg-slate-800/30 transition-all group">
+                    <td class="px-5 py-3 text-xs font-mono text-slate-500 whitespace-nowrap">
+                        {{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') if log.timestamp else '—' }}
+                    </td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-0.5 bg-slate-800 rounded text-[10px] font-medium">{{ log.service_name
+                            }}</span>
+                    </td>
+                    <td class="px-5 py-3">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                            {% if log.level == 'INFO' %}bg-emerald-500/10 text-emerald-400
+                            {% elif log.level == 'WARNING' %}bg-amber-500/10 text-amber-400
+                            {% elif log.level == 'CRITICAL' %}bg-red-700/20 text-red-300
+                            {% else %}bg-red-500/10 text-red-400{% endif %}">
+                            {{ log.level }}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3 text-sm text-slate-300">
+                        <div
+                            class="max-w-2xl truncate group-hover:whitespace-normal group-hover:break-all transition-all">
+                            {{ log.message }}
+                        </div>
+                    </td>
+                    <td
+                        class="px-5 py-3 text-xs text-right {% if log.severity_score and log.severity_score < 0.4 %}text-red-400 font-bold{% else %}text-slate-400{% endif %}">
+                        {{ "%.2f"|format(log.severity_score) if log.severity_score else '—' }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-5 py-16 text-center text-slate-500">
+                        No logs yet — run <code class="bg-slate-800 px-1 rounded text-xs">python seed_data.py</code> to
+                        populate data.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="p-5 border-t border-slate-800 flex items-center justify-between text-sm text-slate-400">
+        <span id="pagination-info">Page 1</span>
+        <div class="flex space-x-2">
+            <button id="btn-prev" onclick="changePage(-1)"
+                class="px-3 py-1 border border-slate-700 rounded hover:bg-slate-800 transition-colors disabled:opacity-40">←
+                Prev</button>
+            <button id="btn-next" onclick="changePage(1)"
+                class="px-3 py-1 border border-slate-700 rounded hover:bg-slate-800 transition-colors">Next →</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 0;
+    const PAGE_SIZE = 50;
+    let refreshTimer = null;
+
+    function levelBadge(level) {
+        const map = {
+            'ERROR': 'bg-red-500/10 text-red-400',
+            'CRITICAL': 'bg-red-700/20 text-red-300',
+            'WARNING': 'bg-amber-500/10 text-amber-400',
+            'INFO': 'bg-emerald-500/10 text-emerald-400',
+        };
+        return `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${map[level] || 'bg-slate-700 text-slate-300'}">${level}</span>`;
+    }
+
+    async function loadLogs() {
+        const serviceId = document.getElementById('filter-service').value;
+        const level = document.getElementById('filter-level').value;
+        const skip = currentPage * PAGE_SIZE;
+
+        let url = `/api/logs/?skip=${skip}&limit=${PAGE_SIZE}`;
+        if (serviceId) url += `&service_id=${serviceId}`;
+        if (level) url += `&level=${level}`;
+
+        const res = await fetch(url);
+        const logs = await res.json();
+
+        // Count
+        let countUrl = `/api/logs/count?`;
+        if (serviceId) countUrl += `&service_id=${serviceId}`;
+        if (level) countUrl += `&level=${level}`;
+        const cRes = await fetch(countUrl);
+        const cData = await cRes.json();
+
+        const tbody = document.getElementById('logs-tbody');
+        if (!logs.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-12 text-center text-slate-500">No logs match your filters.</td></tr>`;
+        } else {
+            tbody.innerHTML = logs.map(log => {
+                const ts = log.timestamp ? new Date(log.timestamp).toLocaleString() : '—';
+                const score = log.severity_score ? log.severity_score.toFixed(2) : '—';
+                const scoreClass = log.severity_score && log.severity_score < 0.4 ? 'text-red-400 font-bold' : 'text-slate-400';
+                return `<tr class="hover:bg-slate-800/30 transition-all group">
+                <td class="px-5 py-3 text-xs font-mono text-slate-500 whitespace-nowrap">${ts}</td>
+                <td class="px-5 py-3"><span class="px-2 py-0.5 bg-slate-800 rounded text-[10px] font-medium">${log.service_name}</span></td>
+                <td class="px-5 py-3">${levelBadge(log.level)}</td>
+                <td class="px-5 py-3 text-sm text-slate-300">
+                    <div class="max-w-2xl truncate group-hover:whitespace-normal group-hover:break-all transition-all">${log.message}</div>
+                </td>
+                <td class="px-5 py-3 text-xs text-right ${scoreClass}">${score}</td>
+            </tr>`;
+            }).join('');
+        }
+
+        document.getElementById('log-count-bar').textContent = `Showing ${skip + 1}–${skip + logs.length} of ${cData.count} entries`;
+        document.getElementById('pagination-info').textContent = `Page ${currentPage + 1}`;
+        document.getElementById('btn-prev').disabled = currentPage === 0;
+        document.getElementById('btn-next').disabled = logs.length < PAGE_SIZE;
+    }
+
+    function changePage(dir) {
+        currentPage = Math.max(0, currentPage + dir);
+        loadLogs();
+    }
+
+    function setupAutoRefresh() {
+        if (refreshTimer) clearInterval(refreshTimer);
+        if (document.getElementById('auto-refresh').checked) {
+            refreshTimer = setInterval(loadLogs, 10000);
+        }
+    }
+
+    document.getElementById('btn-refresh').addEventListener('click', loadLogs);
+    document.getElementById('filter-service').addEventListener('change', () => { currentPage = 0; loadLogs(); });
+    document.getElementById('filter-level').addEventListener('change', () => { currentPage = 0; loadLogs(); });
+    document.getElementById('auto-refresh').addEventListener('change', setupAutoRefresh);
+
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+        const serviceId = document.getElementById('filter-service').value;
+        const level = document.getElementById('filter-level').value;
+        let url = '/api/logs/export?';
+        if (serviceId) url += `service_id=${serviceId}&`;
+        if (level) url += `level=${level}`;
+        window.location.href = url;
+    });
+
+    loadLogs();
+    setupAutoRefresh();
+</script>
+{% endblock %}

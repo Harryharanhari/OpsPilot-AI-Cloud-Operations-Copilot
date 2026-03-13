@@ -1,0 +1,25 @@
+# Core requirements for running OpsPilot locally without Docker
+# Skips heavy torch/transformers — AI features fall back to rule-based mode
+
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+python-dotenv
+jinja2
+python-multipart
+httpx
+scikit-learn
+prometheus-client
+python-jose[cryptography]
+passlib[bcrypt]
+pandas
+numpy
+pytest
+
+# Uncomment below for full AI features (large download ~2GB):
+# torch
+# transformers
+# sentence-transformers
+# faiss-cpu

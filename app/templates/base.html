@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - OpsPilot</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX via CDN -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .bg-glass { background: rgba(17, 24, 39, 0.7); backdrop-filter: blur(10px); }
+        .sidebar-item-active { background: rgba(59, 130, 246, 0.1); border-right: 4px solid #3b82f6; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        accent: '#8b5cf6',
+                        dark: '#0f172a',
+                        card: '#1e293b'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark text-slate-200 min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-card border-r border-slate-800 flex flex-col fixed inset-y-0 left-0 z-50">
+        <div class="p-6 flex items-center space-x-3">
+            <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center font-bold text-xl">OP</div>
+            <span class="text-xl font-bold tracking-tight">OpsPilot</span>
+        </div>
+        
+        <nav class="flex-1 mt-6 px-4 space-y-2">
+            <a href="/dashboard" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-colors {% if active_page == 'dashboard' %}sidebar-item-active text-primary{% endif %}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                <span>Dashboard</span>
+            </a>
+            <a href="/logs" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-colors {% if active_page == 'logs' %}sidebar-item-active text-primary{% endif %}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Logs</span>
+            </a>
+            <a href="/incidents" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-colors {% if active_page == 'incidents' %}sidebar-item-active text-primary{% endif %}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <span>Incidents</span>
+            </a>
+            <a href="/metrics" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-colors {% if active_page == 'metrics' %}sidebar-item-active text-primary{% endif %}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                <span>Metrics</span>
+            </a>
+            <a href="/chat" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-colors {% if active_page == 'chat' %}sidebar-item-active text-primary{% endif %}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                <span>AI Chat</span>
+            </a>
+            <a href="/reports" class="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-colors {% if active_page == 'reports' %}sidebar-item-active text-primary{% endif %}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Reports</span>
+            </a>
+        </nav>
+        
+        <div class="p-6 border-t border-slate-800 mt-auto">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-slate-700 rounded-full flex items-center justify-center font-semibold text-xs text-slate-300">AD</div>
+                <div>
+                    <p class="text-sm font-medium">Admin User</p>
+                    <p class="text-xs text-slate-400">Pro Plan</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 ml-64 p-8">
+        <!-- Top Navigation -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-white">{{ title }}</h1>
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <input type="text" placeholder="Search systems..." class="bg-card border border-slate-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64">
+                    <svg class="w-4 h-4 text-slate-400 absolute right-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <button class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+                    + New Alert
+                </button>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div id="content-area">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Notifications Toast -->
+    <div id="toast-container" class="fixed bottom-8 right-8 z-50 pointer-events-none"></div>
+
+    <script>
+        // Real-time notification simulator (placeholders)
+        function showNotification(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-lg bg-card border shadow-xl flex items-center space-x-3 transform translate-y-full opacity-0 transition-all duration-300 mb-4 
+                              ${type === 'error' ? 'border-red-500 text-red-100' : 'border-blue-500 text-blue-100'}`;
+            toast.style.width = '300px';
+            toast.innerHTML = `
+                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-lg
+                             ${type === 'error' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}">
+                    ${type === 'error' ? '!' : 'i'}
+                </div>
+                <div class="flex-1 text-sm font-medium">${message}</div>
+            `;
+            const container = document.getElementById('toast-container');
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.remove('translate-y-full', 'opacity-0');
+            }, 100);
+            
+            // Remove after delay
+            setTimeout(() => {
+                toast.classList.add('translate-y-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Example trigger for real-time vibe
+        if (Math.random() > 0.7) {
+            setTimeout(() => showNotification('Anomaly detected in API Core service', 'error'), 2000);
+        }
+    </script>
+</body>
+</html>

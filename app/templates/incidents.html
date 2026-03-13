@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Filters + Actions -->
+<div class="flex flex-wrap gap-3 items-center justify-between mb-6">
+    <div class="flex gap-3">
+        <select id="filter-severity"
+            class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-slate-300">
+            <option value="">All Severities</option>
+            <option value="CRITICAL">Critical</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+        </select>
+        <select id="filter-status"
+            class="bg-slate-900 border border-slate-700 text-sm rounded-lg px-3 py-2 text-slate-300">
+            <option value="">All Statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="ACKNOWLEDGED">Acknowledged</option>
+            <option value="RESOLVED">Resolved</option>
+        </select>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="exportIncidents()"
+            class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm flex items-center space-x-2 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                </path>
+            </svg>
+            <span>Export CSV</span>
+        </button>
+        <button onclick="showCreateModal()"
+            class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span>New Incident</span>
+        </button>
+    </div>
+</div>
+
+<!-- Incidents List -->
+<div id="incidents-list" class="space-y-4">
+    {% for incident in incidents %}
+    <div class="incident-card bg-card border border-slate-800 rounded-xl shadow-lg transition-all hover:border-slate-700"
+        id="inc-{{ incident.id }}" data-severity="{{ incident.severity }}" data-status="{{ incident.status }}">
+        <div class="p-6">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center space-x-3">
+                    <span class="px-2 py-1 rounded text-[10px] font-bold uppercase
+                        {% if incident.severity == 'CRITICAL' %}bg-red-500 text-white
+                        {% elif incident.severity == 'HIGH' %}bg-orange-500 text-white
+                        {% elif incident.severity == 'MEDIUM' %}bg-amber-500 text-white
+                        {% else %}bg-blue-500 text-white{% endif %}">
+                        {{ incident.severity }}
+                    </span>
+                    <h3 class="text-lg font-bold text-white">{{ incident.title }}</h3>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span class="px-2 py-1 rounded text-[10px] font-semibold uppercase
+                        {% if incident.status == 'OPEN' %}bg-red-500/10 text-red-400
+                        {% elif incident.status == 'ACKNOWLEDGED' %}bg-amber-500/10 text-amber-400
+                        {% else %}bg-emerald-500/10 text-emerald-400{% endif %}" id="status-{{ incident.id }}">
+                        {{ incident.status }}
+                    </span>
+                    <span class="text-xs text-slate-500 font-mono">INC-{{ incident.id }}</span>
+                </div>
+            </div>
+
+            <p class="text-slate-300 text-sm mb-4 leading-relaxed">{{ incident.description }}</p>
+
+            {% if incident.root_cause %}
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-800 mb-4">
+                <p class="text-xs text-slate-500 uppercase font-bold mb-1">Root Cause</p>
+                <p class="text-sm text-slate-300">{{ incident.root_cause }}</p>
+            </div>
+            {% endif %}
+
+            {% if incident.remediation_steps %}
+            <div class="bg-emerald-500/5 p-3 rounded-lg border border-emerald-500/20 mb-4">
+                <p class="text-xs text-emerald-500 uppercase font-bold mb-1">Remediation</p>
+                <p class="text-sm text-slate-300">{{ incident.remediation_steps }}</p>
+            </div>
+            {% endif %}
+
+            <div class="flex flex-wrap gap-2">
+                {% if incident.status == 'OPEN' %}
+                <button onclick="updateIncident({{ incident.id }}, 'ACKNOWLEDGED')"
+                    class="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                    Acknowledge
+                </button>
+                {% endif %}
+                {% if incident.status != 'RESOLVED' %}
+                <button onclick="updateIncident({{ incident.id }}, 'RESOLVED')"
+                    class="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                    ✓ Resolve
+                </button>
+                {% endif %}
+                <a href="/chat"
+                    class="bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+                    🤖 Ask AI
+                </a>
+            </div>
+        </div>
+        <div class="bg-slate-800/10 px-6 py-2 border-t border-slate-800 text-xs text-slate-500 flex justify-between">
+            <span>Created: {{ incident.created_at.strftime('%Y-%m-%d %H:%M') if incident.created_at else '—' }}</span>
+            <span>Updated: {{ incident.updated_at.strftime('%Y-%m-%d %H:%M') if incident.updated_at else '—' }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-card border border-dashed border-slate-700 rounded-xl p-20 text-center">
+        <div class="flex flex-col items-center opacity-40">
+            <svg class="w-16 h-16 mb-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="text-xl font-bold text-white">All Systems Operational</h3>
+            <p class="text-sm mt-2">No active incidents. Run <code
+                    class="bg-slate-800 px-1 rounded">python seed_data.py</code> to populate.</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Create Incident Modal -->
+<div id="create-modal"
+    class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-card border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-white">Create New Incident</h3>
+            <button onclick="hideCreateModal()" class="text-slate-400 hover:text-white transition-colors">✕</button>
+        </div>
+        <form id="create-form" class="p-6 space-y-4">
+            <div>
+                <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">Title</label>
+                <input name="title" type="text" required placeholder="Incident title..."
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm focus:ring-2 focus:ring-primary focus:outline-none">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">Description</label>
+                <textarea name="description" rows="3" required placeholder="Describe the incident..."
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm focus:ring-2 focus:ring-primary focus:outline-none"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">Severity</label>
+                    <select name="severity"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+                        <option>CRITICAL</option>
+                        <option>HIGH</option>
+                        <option selected>MEDIUM</option>
+                        <option>LOW</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">Status</label>
+                    <select name="status"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 text-sm">
+                        <option>OPEN</option>
+                        <option>ACKNOWLEDGED</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit"
+                    class="flex-1 bg-primary hover:bg-blue-600 text-white py-2 rounded-lg font-semibold text-sm transition-colors">
+                    Create Incident
+                </button>
+                <button type="button" onclick="hideCreateModal()"
+                    class="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-2 rounded-lg text-sm transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function showCreateModal() {
+        document.getElementById('create-modal').classList.remove('hidden');
+        document.getElementById('create-modal').classList.add('flex');
+    }
+    function hideCreateModal() {
+        document.getElementById('create-modal').classList.add('hidden');
+        document.getElementById('create-modal').classList.remove('flex');
+    }
+
+    document.getElementById('create-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const body = Object.fromEntries(fd.entries());
+        const res = await fetch('/api/incidents/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (res.ok) {
+            hideCreateModal();
+            showNotification('Incident created successfully', 'info');
+            setTimeout(() => location.reload(), 800);
+        }
+    });
+
+    async function updateIncident(id, status) {
+        const res = await fetch(`/api/incidents/${id}?status=${status}`, { method: 'PATCH' });
+        if (res.ok) {
+            const badge = document.getElementById(`status-${id}`);
+            if (badge) {
+                badge.textContent = status;
+                const colorMap = {
+                    'ACKNOWLEDGED': 'bg-amber-500/10 text-amber-400',
+                    'RESOLVED': 'bg-emerald-500/10 text-emerald-400',
+                    'OPEN': 'bg-red-500/10 text-red-400',
+                };
+                badge.className = `px-2 py-1 rounded text-[10px] font-semibold uppercase ${colorMap[status] || ''}`;
+            }
+            showNotification(`Incident INC-${id} marked as ${status}`, 'info');
+            if (status === 'RESOLVED') {
+                setTimeout(() => document.getElementById(`inc-${id}`)?.classList.add('opacity-50'), 500);
+            }
+        }
+    }
+
+    function exportIncidents() {
+        window.location.href = '/api/incidents/export';
+    }
+
+    // Filter
+    document.getElementById('filter-severity').addEventListener('change', filterCards);
+    document.getElementById('filter-status').addEventListener('change', filterCards);
+
+    function filterCards() {
+        const sev = document.getElementById('filter-severity').value;
+        const st = document.getElementById('filter-status').value;
+        document.querySelectorAll('.incident-card').forEach(card => {
+            const matchSev = !sev || card.dataset.severity === sev;
+            const matchSt = !st || card.dataset.status === st;
+            card.style.display = matchSev && matchSt ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

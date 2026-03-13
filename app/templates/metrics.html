@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Service Selector -->
+<div class="flex gap-3 mb-6">
+    <select id="svc-filter" class="bg-card border border-slate-700 text-sm rounded-lg px-3 py-2 text-slate-300">
+        <option value="">All Services</option>
+        {% for svc in services %}
+        <option value="{{ svc.name }}">{{ svc.name }}</option>
+        {% endfor %}
+    </select>
+    <span class="text-xs text-slate-500 flex items-center ml-2">
+        <span class="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span> Auto-refresh 10s
+    </span>
+</div>
+
+<!-- Metric Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6" id="metric-cards">
+    {% for metric_name, label, unit in [('cpu_usage','CPU
+    Usage','%'),('memory_usage','Memory','%'),('request_rate','Req/s','rps'),('error_rate','Error
+    Rate','%'),('response_time','Resp. Time','ms')] %}
+    <div class="bg-card p-4 rounded-xl border border-slate-800 text-center">
+        <p class="text-xs text-slate-400 uppercase font-bold mb-1">{{ label }}</p>
+        <h3 class="text-2xl font-bold text-white metric-val" id="m-{{ metric_name }}">—</h3>
+        <p class="text-xs text-slate-500 mt-1">{{ unit }}</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Charts Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <h4 class="font-semibold text-white mb-4">CPU Usage Over Time</h4>
+        <div class="h-52"><canvas id="chart-cpu"></canvas></div>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <h4 class="font-semibold text-white mb-4">Memory Usage Over Time</h4>
+        <div class="h-52"><canvas id="chart-memory"></canvas></div>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <h4 class="font-semibold text-white mb-4">Request Rate (req/s)</h4>
+        <div class="h-52"><canvas id="chart-requests"></canvas></div>
+    </div>
+    <div class="bg-card p-5 rounded-xl border border-slate-800">
+        <h4 class="font-semibold text-white mb-4">Response Time (ms)</h4>
+        <div class="h-52"><canvas id="chart-response"></canvas></div>
+    </div>
+</div>
+
+<!-- Services Health Table -->
+<div class="bg-card rounded-xl border border-slate-800 overflow-hidden">
+    <div class="p-5 border-b border-slate-800 flex justify-between items-center">
+        <h4 class="font-semibold text-white">Services Health Snapshot</h4>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="text-xs text-slate-400 uppercase font-bold bg-slate-800/10 border-b border-slate-800">
+                <tr>
+                    <th class="px-5 py-3">Service</th>
+                    <th class="px-5 py-3">CPU %</th>
+                    <th class="px-5 py-3">Memory %</th>
+                    <th class="px-5 py-3">Req/s</th>
+                    <th class="px-5 py-3">Error %</th>
+                    <th class="px-5 py-3">Health</th>
+                </tr>
+            </thead>
+            <tbody id="services-health-table" class="divide-y divide-slate-800/50">
+                <tr>
+                    <td colspan="6" class="px-5 py-8 text-center text-slate-500">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const chartInstances = {};
+
+    function chartOptions(color) {
+        return {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+            }
+        };
+    }
+
+    function makeOrUpdate(id, labels, values, color) {
+        const ctx = document.getElementById(id).getContext('2d');
+        const dataset = {
+            data: values, borderColor: color,
+            backgroundColor: color.replace('1)', '0.08)'),
+            fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: color
+        };
+        if (chartInstances[id]) {
+            chartInstances[id].data.labels = labels;
+            chartInstances[id].data.datasets[0] = dataset;
+            chartInstances[id].update();
+        } else {
+            chartInstances[id] = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets: [dataset] },
+                options: chartOptions(color)
+            });
+        }
+    }
+
+    function healthBadge(cpu, mem, err) {
+        if (cpu > 85 || mem > 85 || err > 5) return '<span class="px-2 py-0.5 rounded text-xs bg-red-500/10 text-red-400 font-bold">Critical</span>';
+        if (cpu > 70 || mem > 70 || err > 2) return '<span class="px-2 py-0.5 rounded text-xs bg-amber-500/10 text-amber-400 font-bold">Degraded</span>';
+        return '<span class="px-2 py-0.5 rounded text-xs bg-emerald-500/10 text-emerald-400 font-bold">Healthy</span>';
+    }
+
+    async function refreshMetrics() {
+        try {
+            const res = await fetch('/api/metrics/snapshot');
+            const data = await res.json();
+            const ts = data.timeseries || {};
+
+            // Charts
+            if (ts.cpu_usage?.labels?.length) {
+                makeOrUpdate('chart-cpu', ts.cpu_usage.labels, ts.cpu_usage.values, 'rgba(59,130,246,1)');
+            }
+            if (ts.memory_usage?.labels?.length) {
+                makeOrUpdate('chart-memory', ts.memory_usage.labels, ts.memory_usage.values, 'rgba(139,92,246,1)');
+            }
+            if (ts.request_rate?.labels?.length) {
+                makeOrUpdate('chart-requests', ts.request_rate.labels, ts.request_rate.values, 'rgba(16,185,129,1)');
+            }
+            if (ts.response_time?.labels?.length) {
+                makeOrUpdate('chart-response', ts.response_time.labels, ts.response_time.values, 'rgba(245,158,11,1)');
+            }
+
+            // Metric cards (avg from timeseries)
+            const avgOf = (arr) => arr?.values?.length ? (arr.values.reduce((a, b) => a + b, 0) / arr.values.length).toFixed(1) : '—';
+            document.getElementById('m-cpu_usage').textContent = avgOf(ts.cpu_usage);
+            document.getElementById('m-memory_usage').textContent = avgOf(ts.memory_usage);
+            document.getElementById('m-request_rate').textContent = avgOf(ts.request_rate);
+            document.getElementById('m-error_rate').textContent = avgOf(ts.error_rate);
+            document.getElementById('m-response_time').textContent = avgOf(ts.response_time);
+
+            // Services table
+            const snap = data.snapshot || {};
+            const tbody = document.getElementById('services-health-table');
+            const services = Object.keys(snap);
+            if (services.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-8 text-center text-slate-500">No metrics data — run <code class="bg-slate-800 px-1 rounded text-xs">python seed_data.py</code></td></tr>`;
+            } else {
+                tbody.innerHTML = services.map(svc => {
+                    const m = snap[svc];
+                    const cpu = m.cpu_usage?.value ?? '—';
+                    const mem = m.memory_usage?.value ?? '—';
+                    const req = m.request_rate?.value ?? '—';
+                    const err = m.error_rate?.value ?? '—';
+                    return `<tr class="hover:bg-slate-800/20 transition-all">
+                    <td class="px-5 py-3 font-medium text-white">${svc}</td>
+                    <td class="px-5 py-3 ${cpu > 80 ? 'text-red-400 font-bold' : 'text-slate-300'}">${cpu}%</td>
+                    <td class="px-5 py-3 ${mem > 80 ? 'text-red-400 font-bold' : 'text-slate-300'}">${mem}%</td>
+                    <td class="px-5 py-3 text-slate-300">${req}</td>
+                    <td class="px-5 py-3 ${err > 3 ? 'text-red-400 font-bold' : 'text-slate-300'}">${err}%</td>
+                    <td class="px-5 py-3">${healthBadge(cpu, mem, err)}</td>
+                </tr>`;
+                }).join('');
+            }
+        } catch (err) {
+            console.error('Metrics refresh failed:', err);
+        }
+    }
+
+    refreshMetrics();
+    setInterval(refreshMetrics, 10000);
+</script>
+{% endblock %}
